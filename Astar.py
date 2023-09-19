@@ -7,14 +7,17 @@ Created on Sat Sep 16 17:05:54 2023
 import matplotlib.pyplot as plt
 import numpy as np
 import math as m
+import time
+
 class Node:
-    def __init__(self,x,y,parent_cost,index, parent_position):
+    def __init__(self,x,y,parent_cost,index, parent_index):
         # attributes
         self.x=x
         self.y=y 
         self.parent_cost=parent_cost
         self.index= int(index)
-        self.parent_position = parent_position
+        self.parent_index = parent_index
+        
 
 
 class Obstacle():
@@ -66,9 +69,7 @@ if __name__=='__main__':
     gs=0.5
     x_curr=2
     y_curr=1
-    x_start = 2 
-    
-    y_start = 1
+    start_position = [2,2]
     agent_radius  = 0.5
     
     goal_position = [8.0,9.0]    
@@ -86,12 +87,15 @@ if __name__=='__main__':
     unvisited ={}        
     visited={}
     
-    # Node(x,y, parent_cost,index,parent_position)
-    current_node=Node(x_start, y_start, 0, -1, [-1,-1])
+    # Node(x,y, parent_cost,index,parent_index)
+    index = int(compute_index(min_x, max_x, min_y, max_y, gs, start_position[0], start_position[1]))
+    current_node=Node(start_position[0] , start_position[1] , 0, index, -1)
+    visited[current_node] = current_node
     current_index = compute_index(min_x, max_x, min_y, max_y, gs, current_node.x,current_node.y)
     current_position = [current_node.x, current_node.y]
     unvisited[current_index] = current_node
-
+    
+    init_time = time.time()
     while [current_node.x, current_node.y] != goal_position:
         
         current_index = min(unvisited, key=lambda x:unvisited[x].parent_cost)
@@ -99,20 +103,20 @@ if __name__=='__main__':
         current_node = unvisited[current_index]
         
         if [current_node.x, current_node.y] == goal_position:    
+            print("time diff is", time.time() - init_time)
             #return 
             wp_list = []
             wp_node = current_node
             
             wp_list.append([wp_node.x, wp_node.y])
             
-            while (wp_node.index != -1):
-                wp_node = visited[wp_node.index]
+            while (wp_node.parent_index != -1):
+                wp_node = visited[wp_node.parent_index]
                 wp_list.append([wp_node.x, wp_node.y])
                 print("position is", wp_node.x, wp_node.y)
-                
-                if wp_node.index == -1:
-                    wp_list= wp_list[::-1]    
-                    break
+            
+            wp_list = wp_list[::-1]
+            break
                 
 
         
@@ -146,18 +150,25 @@ if __name__=='__main__':
         
         # loop through all filtered moves and put into unvisited
         for move in filtered_moves:
+            if m.dist((current_node.x,current_node.y),move)>1:
+                print("you cant do that")
             # compute the cost to get to this filtered move FROM our current node
             current_position = [current_node.x, current_node.y]
+        
+            cost = current_node.parent_cost + m.dist(current_position, move) + m.dist(move,[goal_position[0],goal_position[1]])
+
+            # cost = current_node.parent_cost + m.dist(current_position, move)
             
-
-            cost = current_node.parent_cost + m.dist(current_position, move)
-            +m.dist(move,[goal_position[0],goal_position[1]])
-
             # calculate the index of this filtered move
             index = int(compute_index(min_x, max_x, min_y, max_y, gs, move[0],move[1]))
             
             # make sure its not in visited 
             if index in visited:
+                if visited[index].parent_cost > cost:
+                    # print("updating cost", unvisited[index].x, unvisited[index].y)
+                    visited[index].parent_cost = cost
+                    visited[index].parent_index = current_node.index
+                    
                 continue
             
             # update cost
@@ -173,20 +184,20 @@ if __name__=='__main__':
                 if unvisited[index].parent_cost > cost:
                     # print("updating cost", unvisited[index].x, unvisited[index].y)
                     unvisited[index].parent_cost = cost
-                    unvisited[index].index = current_node.index
-                    unvisited[index].parent_position = current_position
+                    unvisited[index].parent_index = current_node.index
                 
                 continue
 
                 # if lower than update
             # make a temp node
-            temp_node=Node(move[0], move[1], cost, current_index, 
-                           [current_node.x, current_node.y])
+            temp_node=Node(move[0], move[1], cost, index, 
+                           current_node.index)
 
             unvisited[index] = temp_node
 
     
     ### PLOT STUFF
+    plt.figure(figsize=(7,7))
     x_list = []
     y_list = []
     for wp in wp_list:
@@ -195,7 +206,10 @@ if __name__=='__main__':
         
     for obs in obstacle_list:
         plt.scatter(obs.x_pos, obs.y_pos, c='r')
-
+        
+    for nod in visited.values():
+        
+         plt.scatter(nod.x, nod.y, c='g')
     plt.plot(x_list, y_list, '-o')
     plt.grid(which = "both")
     plt.minorticks_on()  
