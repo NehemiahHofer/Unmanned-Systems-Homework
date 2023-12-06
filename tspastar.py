@@ -32,11 +32,15 @@ class Obstacle():
             return False
         return True
 def is_not_valid(obstacle_list:list, x_min:int, y_min:int, y_max:int, x_max:int,
-                 x_curr:float, y_curr:float, agent_radius:float=0.0,grid_radius:float=0.0):
-    for obs in obstacle_list:
-        if obs.is_inside(x_curr,y_curr,agent_radius):
-            #print("youre dead at", obs.x_pos, obs.y_pos, x_curr, y_curr)
-            return True
+                 x_curr:float, y_curr:float, agent_radius:float=0.0,
+                 grid_radius:float=0.0,
+                 check_obstacle=True):
+    
+    if check_obstacle == True:
+        for obs in obstacle_list:
+            if obs.is_inside(x_curr,y_curr,agent_radius):
+                #print("youre dead at", obs.x_pos, obs.y_pos, x_curr, y_curr)
+                return True
     if x_min+grid_radius > x_curr:
         return True
     if x_max-grid_radius < x_curr:
@@ -56,7 +60,7 @@ def get_all_moves(node_position:list) -> list:
     pass      
  
  
-def Astar(xgoal, ygoal,x_start,y_start):
+def Astar(goal_position,start):
     # INTIALIZE HERE
     min_x=0
     max_x=15
@@ -65,12 +69,13 @@ def Astar(xgoal, ygoal,x_start,y_start):
     gs=0.5
     x_curr=1
     y_curr=1
-    #x_start = 1
+    x_start = start[0]
     wp_list=[]
-    #y_start = 1
-    agent_radius  = 0.5
+    counter=(0)
+    y_start = start[1]
+    agent_radius  = .5
     #goal_position = [7.0,13.0] 
-    goal_position =[xgoal,ygoal]
+    #goal_position =[xgoal,ygoal]
     obstacle_positions = []
     obstacle_positions = [(2, 2), (2, 3), 
                           (2, 4), (2, 5), (0, 5),
@@ -88,12 +93,27 @@ def Astar(xgoal, ygoal,x_start,y_start):
                           (9, 12), (10, 12), (11, 12), (12, 8), (12, 9),
                           (12, 10), (12, 11), (12, 12)]
     obstacle_list=[]
-    obstacle_radius= 0.25
+    obstacle_radius= .5
     for obs_pos in obstacle_positions:
         # print("obstacle_positions", obs_pos)
         obstacle= Obstacle(obs_pos[0], obs_pos[1], obstacle_radius)
         obstacle_list.append(obstacle)
  
+    
+    obstacle_radius_range = [-obstacle_radius, 0, obstacle_radius]
+    inflated_list = []
+   
+    for obs_position in obstacle_positions:
+        inflated_list.append(obs_position)
+        for i in obstacle_radius_range:
+            for j in obstacle_radius_range:
+                new_obs_x = obs_position[0] + i
+                new_obs_y = obs_position[1] + j
+                new_pos = (new_obs_x, new_obs_y)
+                inflated_list.append(new_pos)
+             
+    obstacle_set = set(inflated_list)
+    
     ### THIS IS DJIKSTRAS
     unvisited ={}        
     visited={}
@@ -146,8 +166,16 @@ def Astar(xgoal, ygoal,x_start,y_start):
         filtered_moves = []
         for move in move_list:
             if (is_not_valid(obstacle_list, min_x, min_y, max_x, max_y,
-                             move[0], move[1],agent_radius, obstacle_radius) == True):
+                             move[0], move[1],agent_radius, obstacle_radius,
+                             check_obstacle = False) == True):
                 continue
+            
+            
+            move_set = (move[0], move[1])
+            
+            if move_set in obstacle_set:
+                continue
+        
             filtered_moves.append(move)
 
         # loop through all filtered moves and put into unvisited
@@ -195,14 +223,16 @@ def Astar(xgoal, ygoal,x_start,y_start):
         y_list.append(wp[1])
     for obs in obstacle_list:
         plt.scatter(obs.x_pos, obs.y_pos, c='r')
-    plt.plot(x_list, y_list, '-o')
+    plt.plot(x_list, y_list, '-')
     plt.grid(which = "both")
     plt.minorticks_on()  
     plt.xlim([min_x,max_x+gs])
     plt.ylim([min_y,max_y+gs])        
-    #print(wp_list)
-    print(cost)
+    plt.scatter(goal_position[0], goal_position[1], c='black', marker='^', s=100, label='Goal Position')  # Yellow triangle marker
+    #print(cost)
     end_time = time.time()
     execution_time = end_time - start_time
     #print(f"Execution time: {execution_time} seconds")
-    return cost
+    # print(cost)
+    return wp_list
+    
